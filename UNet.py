@@ -1,4 +1,4 @@
-from Basic_blocks import * 
+from Common import *
 
 class UnetGenerator(nn.Module):
 

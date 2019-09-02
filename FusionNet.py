@@ -1,5 +1,4 @@
-from Basic_blocks import * 
-
+from Common import *
 
 class Conv_residual_conv(nn.Module):
 
