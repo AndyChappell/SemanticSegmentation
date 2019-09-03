@@ -17,7 +17,7 @@ args = parser.parse_args()
 # hyperparameters
 
 batch_size = args.batch_size
-imageSize = 512
+imageSize = 1024
 learningRate = 0.0002
 nEpochs = 2
 
@@ -38,7 +38,7 @@ nFiltersInitial = 16 # Initially 64
 if args.network == "fusionnet":
     generator = nn.DataParallel(FusionGenerator(3,3,nFiltersInitial),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
 elif args.network == "unet":
-    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
+    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial,True),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
 
 # Load pretrained model if it exists
 try:
@@ -78,6 +78,8 @@ for epoch in range(nEpochs):
         # doing so you pass a Tensor of input data to the Module and it produces
         # a Tensor of output data.
         y_pred = generator.forward(x)
+
+        sys.exit()
 
         # Compute and print loss. We pass Tensors containing the predicted and true
         # values of y, and the loss function returns a Tensor containing the loss.
