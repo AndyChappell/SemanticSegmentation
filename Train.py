@@ -38,7 +38,7 @@ nFiltersInitial = 16 # Initially 64
 if args.network == "fusionnet":
     generator = nn.DataParallel(FusionGenerator(3,3,nFiltersInitial),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
 elif args.network == "unet":
-    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial,True),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
+    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial,False),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
 
 # Load pretrained model if it exists
 try:
@@ -55,12 +55,15 @@ gen_optimizer = torch.optim.Adam(generator.parameters(),lr=learningRate)
 # Training
 lossTrainAverageList = []
 lossValidationAverageList = []
+accuracyTrainAverageList = []
+accuracyValidationAverageList = []
 epochList = []
 
 for epoch in range(nEpochs):
     epochList.append(epoch)
 
     lossTrainAverage = 0
+    accuracyTrainAverage = 0
     trainSampleCounter = 0
 
     # Data Loader allows us to process the training and validation samples in batches, rather than all at once,
@@ -78,8 +81,7 @@ for epoch in range(nEpochs):
         # doing so you pass a Tensor of input data to the Module and it produces
         # a Tensor of output data.
         y_pred = generator.forward(x)
-
-        sys.exit()
+        accuracyTrainAverage += Accuracy(y_pred, y_truth)
 
         # Compute and print loss. We pass Tensors containing the predicted and true
         # values of y, and the loss function returns a Tensor containing the loss.
@@ -111,7 +113,11 @@ for epoch in range(nEpochs):
     lossTrainAverage /= trainSampleCounter
     lossTrainAverageList.append(lossTrainAverage)
 
+    accuracyTrainAverage /= trainSampleCounter
+    accuracyTrainAverageList.append(accuracyTrainAverage)
+
     lossValidationAverage = 0
+    accuracyValidationAverage = 0
     validationSampleCounter = 0
 
     for index, (image,label) in enumerate(imageBatchValidation):
@@ -122,11 +128,16 @@ for epoch in range(nEpochs):
         y_truth = Variable(truthImage) #.cuda(0)
         y_pred = generator.forward(x)
 
+        accuracyValidationAverage += Accuracy(y_pred, y_truth)
+
         loss = loss_fn(y_pred, y_truth)
         lossValidationAverage += loss.item()
 
     lossValidationAverage /= validationSampleCounter
     lossValidationAverageList.append(lossValidationAverage)
+
+    accuracyValidationAverage /= validationSampleCounter
+    accuracyValidationAverageList.append(accuracyValidationAverage)
 
 fig, ax = plt.subplots()
 ax.set_title('Model Loss')
@@ -137,7 +148,17 @@ ax.plot(epochList, lossValidationAverageList, label='Validation Sample', c='fore
 ax.legend(loc='upper right')
 plt.savefig('AverageLossVsTrainingEpoch')
 
-with open('LossData.txt', 'w') as dataFile:
+fig, ax = plt.subplots()
+ax.set_title('Model Accuracy')
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Average Accuracy')
+ax.plot(epochList, accuracyTrainAverageList, label='Training Sample', c='darkred')
+ax.plot(epochList, accuracyValidationAverageList, label='Validation Sample', c='forestgreen')
+ax.legend(loc='upper left')
+plt.savefig('AverageAccuracyVsTrainingEpoch')
+
+with open('Data.txt', 'w') as dataFile:
     for idx, item in enumerate(epochList):
         dataFile.write('Epoch : ' + str(item) + ', Train Loss : ' + str(lossTrainAverageList[idx]) + ', Validation Loss : ' + str(lossValidationAverageList[idx]) + '\n')
+        dataFile.write('Epoch : ' + str(item) + ', Train Accuracy : ' + str(accuracyTrainAverageList[idx]) + ', Validation Accuracy : ' + str(accuracyValidationAverageList[idx]) + '\n')
 
