@@ -10,35 +10,45 @@ import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--network",type=str,default="unet",help="choose between fusionnet & unet")
-parser.add_argument("--batch_size",type=int,default=1,help="batch size")
-parser.add_argument("--num_gpu",type=int,default=3,help="number of gpus")
+parser.add_argument("--batch-size",type=int,default=1,help="batch size")
+parser.add_argument("--num-gpu",type=int,default=1,help="number of gpus")
 args = parser.parse_args()
 
 # hyperparameters
 
 batch_size = args.batch_size
-imageSize = 1024
+#imageSize = 1024
+image_width = 512
+image_height = 208
 learningRate = 0.0002
-nEpochs = 2
+nEpochs = 1
 
 # Input folder structure root/class1/Img1.jpg must be adhered
 # Input training data
-inputDirectoryTrain = "./TestData/train"
-imageDataTrain = datasets.ImageFolder(root=inputDirectoryTrain, transform = transforms.Compose([transforms.Resize(size=imageSize), transforms.CenterCrop(size=(imageSize,imageSize*2)), transforms.ToTensor(),]))
+inputDirectoryTrain = "./Training"
+#imageDataTrain = datasets.ImageFolder(root=inputDirectoryTrain, transform = transforms.Compose([transforms.Resize(size=imageSize), transforms.CenterCrop(size=(imageSize,imageSize*2)), transforms.ToTensor(),]))
+imageDataTrain = datasets.ImageFolder(root=inputDirectoryTrain, transform = 
+    transforms.Compose([transforms.Resize(size=(image_height, image_width)),
+    transforms.CenterCrop(size=(image_height, image_width)),
+    transforms.ToTensor(),]))
 imageBatchTrain = data.DataLoader(imageDataTrain, batch_size=batch_size, shuffle=True, num_workers=2)
 
 # Input validation data
-inputDirectoryValidation = "./TestData/val/"
-imageDataValidation = datasets.ImageFolder(root=inputDirectoryValidation, transform = transforms.Compose([transforms.Resize(size=imageSize), transforms.CenterCrop(size=(imageSize,imageSize*2)), transforms.ToTensor(),]))
+inputDirectoryValidation = "./Validation"
+#imageDataValidation = datasets.ImageFolder(root=inputDirectoryValidation, transform = transforms.Compose([transforms.Resize(size=imageSize), transforms.CenterCrop(size=(imageSize,imageSize*2)), transforms.ToTensor(),]))
+imageDataValidation = datasets.ImageFolder(root=inputDirectoryValidation,
+    transform = transforms.Compose([transforms.Resize(size=(image_height, image_width)),
+    transforms.CenterCrop(size=(image_height, image_width)),
+    transforms.ToTensor(),]))
 imageBatchValidation = data.DataLoader(imageDataValidation, batch_size=batch_size, shuffle=True, num_workers=2)
 
-nFiltersInitial = 16 # Initially 64
+nFiltersInitial = 4 # 16 # Initially 64
 
 # Initiate Generator
 if args.network == "fusionnet":
-    generator = nn.DataParallel(FusionGenerator(3,3,nFiltersInitial),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
+    generator = nn.DataParallel(FusionGenerator(3,3,nFiltersInitial),device_ids=[i for i in range(args.num_gpu)]).cuda()
 elif args.network == "unet":
-    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial,False),device_ids=[i for i in range(args.num_gpu)]) #.cuda()
+    generator = nn.DataParallel(UnetGenerator(3,3,nFiltersInitial,False),device_ids=[i for i in range(args.num_gpu)]).cuda()
 
 # Load pretrained model if it exists
 try:
@@ -73,8 +83,8 @@ for epoch in range(nEpochs):
         inputImage, truthImage = torch.chunk(image, chunks=2, dim=3)
         gen_optimizer.zero_grad()
 
-        x = Variable(inputImage) #.cuda(0)
-        y_truth = Variable(truthImage) #.cuda(0)
+        x = Variable(inputImage).cuda(0)
+        y_truth = Variable(truthImage).cuda(0)
 
         # Forward pass: compute predicted y by passing x to the model. Module objects
         # override the __call__ operator so you can call them like functions. When
@@ -102,7 +112,8 @@ for epoch in range(nEpochs):
             print("saving module")
             traced_script_module.save("model.pt")
 
-        if index % 400 ==0:
+#        if index % 400 ==0:
+        if index % 1 == 0:
             print(epoch)
             print(loss)
             v_utils.save_image(x.cpu().data,"./result/InputImage_Epoch_{}_FileIndex_{}.png".format(epoch,index))
@@ -124,8 +135,8 @@ for epoch in range(nEpochs):
         validationSampleCounter += 1
         inputImage, truthImage = torch.chunk(image, chunks=2, dim=3)
 
-        x = Variable(inputImage) #.cuda(0)
-        y_truth = Variable(truthImage) #.cuda(0)
+        x = Variable(inputImage).cuda(0)
+        y_truth = Variable(truthImage).cuda(0)
         y_pred = generator.forward(x)
 
         accuracyValidationAverage += Accuracy(y_pred, y_truth)
