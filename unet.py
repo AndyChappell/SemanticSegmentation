@@ -86,13 +86,13 @@ class UNet(nn.Module):
         # Assume 3 classes to figure out
         if y_range is not None:
             self.output = nn.Sequential(
-                nn.Conv2d(n_filters * 1, n_classes, 1)
-            )
-        else:
-            self.output = nn.Sequential(
                 nn.Conv2d(n_filters * 1, n_classes, 1),
                 #Sigmoid(),
                 SigmoidRange(*y_range)
+            )
+        else:
+            self.output = nn.Sequential(
+                nn.Conv2d(n_filters * 1, n_classes, 1)
             )
 
     def forward(self, x):
