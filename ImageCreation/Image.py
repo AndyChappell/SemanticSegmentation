@@ -8,6 +8,10 @@ import numpy as np
 import glob
 from PIL import Image
 
+VOID_CODE = 0
+SHOWER_CODE = 1
+TRACK_CODE = 2
+
 class Geometry:
     def __init__(self, xuvw_min, xuvw_max):
         self.x_min = xuvw_min[0]
@@ -74,6 +78,7 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
     r = []
     g = []
     b = []
+    code = []
     row.pop(0) # Date Time
     row.pop(0) # NHits
     row.pop() # 1
@@ -108,10 +113,12 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
             r.append(0)
             g.append(1)
             b.append(0)
+            code.append(SHOWER_CODE)
         else:
-            r.append(0)
+            r.append(1)
             g.append(0)
-            b.append(1)
+            b.append(0)
+            code.append(TRACK_CODE)
 
     x = np.array(x)
     z = np.array(z)
@@ -123,21 +130,34 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
     input_histogram, x_bin_edges, z_bin_edges = np.histogram2d(x, z, bins = (x_bin_edges, z_bin_edges))
     input_histogram = input_histogram * float(255)
 
-    input_image_name = os.path.join(output_folder, "InputImage_" + name + "_0.jpg")
+    input_image_name = os.path.join(output_folder, "InputImage_" + name + "_0.png")
+    #cv2.imwrite(input_image_name, input_histogram)
     cv2.imwrite(input_image_name, input_histogram)
 
     # Build truth histogram
-    truth_histogram = np.zeros((image_height, image_width, 3), 'uint8')
+    #truth_histogram = np.zeros((image_height, image_width, 3), 'uint8')
+
+    #for idx, x_iter in enumerate(x):
+    #    index_x = x_bin_indices[idx]
+    #    index_z = z_bin_indices[idx]
+    #    if index_x < image_height and index_z < image_width:
+    #        truth_histogram[index_x, index_z] = [r[idx]*255, g[idx]*255, b[idx]*255]
+
+    #truth_image_name = os.path.join(output_folder, "TruthImage_" + name + "_0.png")
+    # OpenCV writes in BGR, whilst we have constructed RGB, so convert
+    #cv2.imwrite(truth_image_name, cv2.cvtColor(truth_histogram, cv2.COLOR_RGB2BGR))
+
+    truth_histogram = np.zeros((image_height, image_width), 'uint8')
 
     for idx, x_iter in enumerate(x):
         index_x = x_bin_indices[idx]
         index_z = z_bin_indices[idx]
         if index_x < image_height and index_z < image_width:
-            truth_histogram[index_x, index_z] = [r[idx]*255, g[idx]*255, b[idx]*255]
+            truth_histogram[index_x, index_z] = code[idx]
 
-    truth_image_name = os.path.join(output_folder, "TruthImage_" + name + "_0.jpg")
-    # OpenCV writes in BGR, whilst we have constructed RGB, so convert
-    cv2.imwrite(truth_image_name, cv2.cvtColor(truth_histogram, cv2.COLOR_RGB2BGR))
+    truth_image_name = os.path.join(output_folder, "TruthImage_" + name + "_0.png")
+
+    cv2.imwrite(truth_image_name, truth_histogram)
 
 #========================================================================================
 
