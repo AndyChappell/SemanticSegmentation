@@ -140,5 +140,5 @@ class UNet(nn.Module):
 
         # Output
         output = self.output(c9)
-        print(output.size())
+        #print(output.size())
         return output
