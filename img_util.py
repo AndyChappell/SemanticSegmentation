@@ -70,3 +70,24 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
     plt.tight_layout()
     plt.savefig("diagnostic_{}_{}.png".format(epoch, batch))
 
+def save_figure(fig, name):
+    """Output a matplotlib figure PNG, PDF and EPS formats.
+
+    Args:
+        fig (Figure): The matplotlib figure to save.
+        name (str): The output filename excluding extension.
+    """
+    fig.savefig(name + ".png")
+    fig.savefig(name + ".pdf")
+    fig.savefig(name + ".eps")
+
+def get_supported_formats():
+    """Output a matplotlib figure PNG, PDF and EPS formats.
+
+    Args:
+
+    Returns:
+        A dictionary containing strings of file format descriptions keyed by
+            extension.
+    """
+    return plt.gcf().canvas.get_supported_filetypes()
