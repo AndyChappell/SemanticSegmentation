@@ -68,7 +68,7 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
     for ax in axs.flatten():
         ax.axis('off')
     plt.tight_layout()
-    plt.savefig("diagnostic_{}_{}.png".format(epoch, batch))
+    save_figure(plt, "diagnostic_{}_{}".format(epoch, batch))
 
 def save_figure(fig, name):
     """Output a matplotlib figure PNG, PDF and EPS formats.
