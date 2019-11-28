@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 def imagify(inputs, predictions, masks, void_code, n=3, randomize=True):
     """Process input, prediction and mask data ready for display
@@ -28,7 +29,11 @@ def imagify(inputs, predictions, masks, void_code, n=3, randomize=True):
     msks = mask_imgs == void_code
     pred_imgs = np.argmax(predictions[choices,...], axis=1)
     pred_imgs = np.ma.array(pred_imgs, mask = msks).filled(0)
-    return zip(input_imgs, pred_imgs, mask_imgs)
+    if n > 1:
+        return zip(input_imgs, pred_imgs, mask_imgs)
+    else:
+        return input_imgs, pred_imgs, mask_imgs
+    #return zip(pred_imgs, mask_imgs)
 
 def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomize=True):
     """Display the images for a given epoch and batch. Each row is a triplet of
@@ -47,7 +52,7 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
     """
     ax = None
     rows, cols = n, 3
-    size = 6
+    size = 6#10
     row_fac = 208. / 512
     col_fac = 1.
     if ax is None:
@@ -58,7 +63,15 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
     elif (rows == 1 and cols != 1) or (rows != 1 and cols == 1):
         axs = [axs]
     axs = np.array(axs)
-    xtr = dict(cmap="viridis", alpha=1.0)
+
+    bounds = np.linspace(0, 2, 3)
+    norm = BoundaryNorm(bounds, cm.N)
+
+    cmap = ListedColormap(['black', 'red', 'blue'])
+    norm = BoundaryNorm([0., 0.5, 1.5, 2.], cmap.N)
+
+    #xtr = dict(cmap="viridis", alpha=1.0)
+    xtr = dict(cmap=cmap, norm=norm, alpha=1.0)
 
     images = imagify(inputs, predictions, masks, void_code, n, randomize)
 

@@ -37,7 +37,7 @@ class SegmentationDataset(Dataset):
 
         img_name = os.path.join(self.image_dir, self.filenames[idx])
         image = np.asarray(open_image(img_name)).astype(np.float32)
-        image /= 255
+        image /= 255.
 
         mask_name = os.path.join(self.mask_dir, self.filenames[idx])
         # If using binary cross entropy, want a normalised float
@@ -75,12 +75,12 @@ class SegmentationBunch():
         valid_ds = SegmentationDataset(image_dir, mask_dir, valid_filenames,
             transform)
 
-        self.train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=4)
-        self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
+        self.train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
+        self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
         if test_size > 0:
             test_filenames = random_list[train_size + valid_size:]
             test_ds = SegmentationDataset(image_dir, mask_dir, test_filenames,
                 transform)
-            self.test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
+            self.test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
         else:
             self.test_dl = None
