@@ -1,2 +1,5 @@
 track_shower_images.tar.gz
 *~
+.DS_Store
+Images/
+TrainingTexts/

@@ -30,10 +30,10 @@ def imagify(inputs, predictions, masks, void_code, n=3, randomize=True):
     pred_imgs = np.argmax(predictions[choices,...], axis=1)
     pred_imgs = np.ma.array(pred_imgs, mask = msks).filled(0)
     if n > 1:
-        return zip(input_imgs, pred_imgs, mask_imgs)
+        return zip(pred_imgs, mask_imgs)
     else:
-        return input_imgs, pred_imgs, mask_imgs
-    #return zip(pred_imgs, mask_imgs)
+        return pred_imgs, mask_imgs
+    #return zip(input_imgs, pred_imgs, mask_imgs)
 
 def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomize=True):
     """Display the images for a given epoch and batch. Each row is a triplet of
@@ -51,8 +51,8 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
             batch, otherwise pick the first n.
     """
     ax = None
-    rows, cols = n, 3
-    size = 6#10
+    rows, cols = n, 2
+    size = 9
     row_fac = 208. / 512
     col_fac = 1.
     if ax is None:
@@ -64,9 +64,6 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
         axs = [axs]
     axs = np.array(axs)
 
-    bounds = np.linspace(0, 2, 3)
-    norm = BoundaryNorm(bounds, cm.N)
-
     cmap = ListedColormap(['black', 'red', 'blue'])
     norm = BoundaryNorm([0., 0.5, 1.5, 2.], cmap.N)
 
@@ -75,8 +72,8 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
 
     images = imagify(inputs, predictions, masks, void_code, n, randomize)
 
-    for img_triplet, ax_row in zip(images, axs):
-        for img, ax in zip(img_triplet, ax_row):
+    for imgs, ax_row in zip(images, axs):
+        for img, ax in zip(imgs, ax_row):
             ax.imshow(img, **xtr)
     for ax in axs.flatten():
         ax.axis('off')
