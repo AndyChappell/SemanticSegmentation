@@ -35,7 +35,7 @@ def imagify(inputs, predictions, masks, void_code, n=3, randomize=True):
         return pred_imgs, mask_imgs
     #return zip(input_imgs, pred_imgs, mask_imgs)
 
-def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomize=True):
+def show_batch(epoch, batch, inputs, predictions, masks, void_code, is_training, n=3, randomize=True):
     """Display the images for a given epoch and batch. Each row is a triplet of
         input, prediction and mask.
 
@@ -78,7 +78,8 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, n=3, randomi
     for ax in axs.flatten():
         ax.axis('off')
     plt.tight_layout()
-    save_figure(plt, "diagnostic_{}_{}".format(epoch, batch))
+    if is_training: save_figure(plt, "training_{}_{}".format(epoch, batch))
+    else: save_figure(plt, "validation_{}_{}".format(epoch, batch))
 
 def save_figure(fig, name):
     """Output a matplotlib figure PNG, PDF and EPS formats.
