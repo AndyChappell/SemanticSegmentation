@@ -27,6 +27,16 @@ class SegmentationDataset(Dataset):
         self.mask_dir = mask_dir
         self.transform = transform
         self.filenames = filenames
+        self.mean = 0.
+        self.std = 255.
+        self.normalise = False
+    
+    def set_image_stats(self, mean, std):
+        self.mean = mean
+        self.std = std
+    
+    def set_normalisation(self, norm=True):
+        self.normalise = norm
 
     def __len__(self):
         return len(self.filenames)
@@ -37,12 +47,11 @@ class SegmentationDataset(Dataset):
 
         img_name = os.path.join(self.image_dir, self.filenames[idx])
         image = np.asarray(open_image(img_name)).astype(np.float32)
-        image /= 255.
+        if self.normalise:
+            image -= self.mean
+            image /= self.std
 
         mask_name = os.path.join(self.mask_dir, self.filenames[idx])
-        # If using binary cross entropy, want a normalised float
-        #mask = np.asarray(open_image(mask_name)).astype(np.float32)
-        #mask /= 255
         # If using categorical cross entropy, need an un-normalised long
         mask = np.asarray(open_image(mask_name)).astype(np.int_)
         sample = (image, mask)
@@ -74,7 +83,21 @@ class SegmentationBunch():
             transform)
         valid_ds = SegmentationDataset(image_dir, mask_dir, valid_filenames,
             transform)
+        
+        mu = 0.0
+        for img, _ in train_ds:
+            mu += torch.mean(img)
+        mu /= len(train_ds)
+        var_diff = 0.0
+        for img, _ in train_ds:
+            var_diff += ((img - mu)**2).sum()
+        N = len(train_ds) * np.prod(np.array(img.shape))
+        std = np.sqrt(var_diff / (N - 1))
 
+        self.mean = mu.item()
+        self.std = std.item()
+        train_ds.set_image_stats(*self.image_stats())
+        train_ds.set_normalisation(True)
         self.train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
         self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
         if test_size > 0:
@@ -84,3 +107,7 @@ class SegmentationBunch():
             self.test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
         else:
             self.test_dl = None
+    
+    def image_stats(self):
+        # This needs to be stored somewhere
+        return 0.6969700455665588, 13.313282012939453
