@@ -20,10 +20,10 @@ def ewma(current, new, alpha=0.1):
     return current + alpha * (new - current)
 
 class LRFinder():
-    def __init__(self, optim, num_iter):
+    def __init__(self, optim, num_iter, low_lr=1e-7, high_lr=10):
         self.optim = optim
         self.num_iter = num_iter
-        self.lambda_func = lambda batch : get_running_factor(1e-7, 10, self.num_iter, batch)
+        self.lambda_func = lambda batch : get_running_factor(low_lr, high_lr, self.num_iter, batch)
         self.scheduler = LambdaLR(optim, lr_lambda=self.lambda_func)
         self.learning_rates = []
         self.losses = []
@@ -62,6 +62,7 @@ class LRFinder():
                 loss.backward()
                 self.optim.step()
                 self.scheduler.step()
+                self.optim.zero_grad()
         self.learning_rates = np.array(self.learning_rates).flatten()
         self.losses = np.array(self.losses)
     
