@@ -1,6 +1,21 @@
 import torch.nn as nn
 import torch
 
+import torch.nn as nn
+import torch
+
+def get_stats(x):
+    return x.mean(), x.std()
+
+def reinit_layer(seq_block, leak = 0.0, use_kaiming_normal=True):
+    for layer in seq_block:
+        if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.ConvTranspose2d):
+            if use_kaiming_normal:
+                nn.init.kaiming_normal_(layer.weight, a = leak)
+            else:
+                nn.init.kaiming_uniform_(layer.weight, a = leak)
+                layer.bias.data.zero_()
+
 def conv2d_block(c_in, c_out):
     """Function to add 2 convolutional layers with the parameters passed to it"""
     block = nn.Sequential(
@@ -10,6 +25,7 @@ def conv2d_block(c_in, c_out):
         nn.Conv2d(c_out, c_out, kernel_size = 3, padding = 1, stride = 1),
         nn.BatchNorm2d(c_out),
         nn.ReLU())
+    reinit_layer(block, leak = 0.0)
     
     return block
 
@@ -21,6 +37,8 @@ def conv2d_block_transpose(n_fil_in, n_fil_out):
         nn.ConvTranspose2d(n_fil_in, n_fil_out, kernel_size = 3, padding = 1, output_padding = 1, stride = 2),
         nn.BatchNorm2d(n_fil_out),
         nn.ReLU())
+    reinit_layer(block, leak = 0.0)
+    
     return block
 
 def dropout(prob):
@@ -44,44 +62,70 @@ class SigmoidRange(nn.Module):
     def forward(self, x):
         return torch.sigmoid(x) * (self.high - self.low) + self.low
 
+class ResBlock(nn.Module):
+    def __init__(self, c_in, c_out):
+        super(ResBlock, self).__init__()
+        self.conv1 = nn.Conv2d(c_in, c_out, kernel_size = 3, stride = 1, padding = 1, bias = False)
+        self.bn1 = nn.BatchNorm2d(c_out)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(c_out, c_out, kernel_size = 3, padding = 1, stride = 1, bias = False)
+        self.bn2 = nn.BatchNorm2d(c_out)
+        self.block = nn.Sequential(self.conv1, self.bn1, self.relu, self.conv2, self.bn2)
+        if c_out != c_in:
+            ds_conv = nn.Conv2d(c_in, c_out, kernel_size = 3, stride = 1, padding = 1, bias = False)
+            ds_bn = nn.BatchNorm2d(c_out)
+            self.downsample = nn.Sequential(ds_conv, ds_bn)
+        else:
+            self.downsample = None
+        reinit_layer(self.block, leak = 0.0)
+
+    def forward(self, x):
+        identity = x
+        out = self.block(x)
+        if self.downsample: identity = self.downsample(x)
+        out += identity
+        out = self.relu(out)
+
+        return out
+
 class UNet(nn.Module):
     def __init__(self, in_dim, n_classes, n_filters = 16, drop_prob = 0.1, y_range = None):
         super(UNet, self).__init__()
         # Contracting Path
-        self.c1 = conv2d_block(in_dim, n_filters * 1)
+        self.c1 = ResBlock(in_dim, n_filters * 1)
         self.m1 = maxpool()
         self.d1 = dropout(drop_prob)
 
-        self.c2 = conv2d_block(n_filters * 1, n_filters * 2)
+        self.c2 = ResBlock(n_filters * 1, n_filters * 2)
         self.m2 = maxpool()
         self.d2 = dropout(drop_prob)
 
-        self.c3 = conv2d_block(n_filters * 2, n_filters * 4)
+        self.c3 = ResBlock(n_filters * 2, n_filters * 4)
         self.m3 = maxpool()
         self.d3 = dropout(drop_prob)
         
-        self.c4 = conv2d_block(n_filters * 4, n_filters * 8)
+        self.c4 = ResBlock(n_filters * 4, n_filters * 8)
         self.m4 = maxpool()
         self.d4 = dropout(drop_prob)
         
-        self.c5 = conv2d_block(n_filters * 8, n_filters * 16)
+        self.c5 = ResBlock(n_filters * 8, n_filters * 16)
         
         # Expansive Path
         self.t6 = conv2d_block_transpose(n_filters * 16, n_filters * 8)
         self.d6 = dropout(drop_prob)
-        self.c6 = conv2d_block(n_filters * 16, n_filters * 8)
+        self.c6 = ResBlock(n_filters * 16, n_filters * 8)
 
         self.t7 = conv2d_block_transpose(n_filters * 8, n_filters * 4)
         self.d7 = dropout(drop_prob)
-        self.c7 = conv2d_block(n_filters * 8, n_filters * 4)
+        self.c7 = ResBlock(n_filters * 8, n_filters * 4)
 
         self.t8 = conv2d_block_transpose(n_filters * 4, n_filters * 2)
         self.d8 = dropout(drop_prob)
-        self.c8 = conv2d_block(n_filters * 4, n_filters * 2)
+        self.c8 = ResBlock(n_filters * 4, n_filters * 2)
         
         self.t9 = conv2d_block_transpose(n_filters * 2, n_filters * 1)
         self.d9 = dropout(drop_prob)
-        self.c9 = conv2d_block(n_filters * 2, n_filters * 1)
+        self.c9 = ResBlock(n_filters * 2, n_filters * 1)
         
         # Assume 3 classes to figure out
         if y_range is not None:
@@ -97,6 +141,7 @@ class UNet(nn.Module):
 
     def forward(self, x):
         # Downsample
+        identity = x
         c1 = self.c1(x)
         m1 = self.m1(c1)
         d1 = self.d1(m1)
