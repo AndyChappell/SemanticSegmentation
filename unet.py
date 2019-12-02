@@ -70,7 +70,7 @@ class ResBlock(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(c_out, c_out, kernel_size = 3, padding = 1, stride = 1, bias = False)
         self.bn2 = nn.BatchNorm2d(c_out)
-        self.block = nn.Sequential(self.conv1, self.bn1, self.relu, self.conv2, self.bn2)
+        self.block = nn.Sequential(self.conv1, self.relu, self.bn1, self.conv2)
         if c_out != c_in:
             ds_conv = nn.Conv2d(c_in, c_out, kernel_size = 3, stride = 1, padding = 1, bias = False)
             ds_bn = nn.BatchNorm2d(c_out)
@@ -85,6 +85,7 @@ class ResBlock(nn.Module):
         if self.downsample: identity = self.downsample(x)
         out += identity
         out = self.relu(out)
+        out = self.bn2(out)
 
         return out
 
