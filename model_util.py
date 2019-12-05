@@ -11,6 +11,9 @@ def get_running_factor(start, stop, n, epoch):
     factor = get_factor(start, stop, n)
     return factor ** epoch
 
+def get_linear_running_factor(start, stop, n, epoch):
+    return start + (epoch / n) * (stop - start)
+
 def multiplicative_slice(start, stop, n):
     factor = get_factor(start, stop, n)
     slices = [start * (factor ** i) for i in range(n)]
