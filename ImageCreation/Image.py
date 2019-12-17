@@ -12,6 +12,8 @@ VOID_CODE = 0
 SHOWER_CODE = 1
 TRACK_CODE = 2
 
+pdg_codes = set([])
+
 class Geometry:
     def __init__(self, xuvw_min, xuvw_max):
         self.x_min = xuvw_min[0]
@@ -91,8 +93,6 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
 
     shower_pdg_codes = [11, -11, 22]
 
-    pdg_codes = set([])
-
     for hit_index in range(int(len(row) / n_elements)):
         # Skip if hit originates from non standard particle
         if 'e' in row[n_elements * hit_index + 3]:
@@ -119,6 +119,7 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
             g.append(0)
             b.append(0)
             code.append(TRACK_CODE)
+
 
     x = np.array(x)
     z = np.array(z)
@@ -186,3 +187,8 @@ if __name__ == "__main__":
     for filename in all_files:
         print(filename)
         make_images(filename, args.output_dir)
+
+    print("PDG codes found")
+    for val in pdg_codes:
+        print(val)
+
