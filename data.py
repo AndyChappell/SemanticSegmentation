@@ -99,12 +99,12 @@ class SegmentationBunch():
         train_ds.set_image_stats(*self.image_stats())
         train_ds.set_normalisation(True)
         self.train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
-        self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
+        self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
         if test_size > 0:
             test_filenames = random_list[train_size + valid_size:]
             test_ds = SegmentationDataset(image_dir, mask_dir, test_filenames,
                 transform)
-            self.test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
+            self.test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
         else:
             self.test_dl = None
     
