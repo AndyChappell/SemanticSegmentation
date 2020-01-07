@@ -39,7 +39,6 @@ def make_images(input_file, output_folder = '', image_size = (208, 512)):
         process_hits(row, tempname, output_folder)
         if do_print:
             print("Processed.")
-        
     f.close()
 
 #===============================================================================
@@ -107,6 +106,7 @@ def process_hits(hits, name, output_folder, image_size=(256, 256)):
     for i in range(n_x):
         for j in range(n_z):
             if np.all(truth_histogram[i,j,...] == 0): continue
+            if np.random.uniform(0.0, 1.0) > 0.2: continue
             truth_image_name = os.path.join(truth_output_folder, f"Image_{name}_{i}_{j}.png")
             cv2.imwrite(truth_image_name, truth_histogram[i, j, ...])
             input_image_name = os.path.join(hits_output_folder, f"Image_{name}_{i}_{j}.png")
@@ -125,6 +125,8 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", "-o", type=str, required=True,
         dest="output_dir", help="The path in which output image files will be stored")
     args = parser.parse_args()
+
+    np.random.seed(42)
 
     file_pattern = '{}_CaloHitList*.txt'.format(args.file_prefix)
 
