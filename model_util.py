@@ -2,80 +2,47 @@ import numpy as np
 from torch.optim.lr_scheduler import LambdaLR
 from torch.autograd import Variable
 
-def get_factor(start, stop, n):
+def get_exponential_factor(start, stop, n, epoch):
     ratio = stop / start
-    factor = ratio ** (1 / (n - 1))
-    return factor
-
-def get_running_factor(start, stop, n, epoch):
-    factor = get_factor(start, stop, n)
+    factor = ratio ** (1. / (n - 1))
     return factor ** epoch
 
-def get_linear_running_factor(start, stop, n, epoch):
-    return start + (epoch / n) * (stop - start)
-
-def multiplicative_slice(start, stop, n):
-    factor = get_factor(start, stop, n)
-    slices = [start * (factor ** i) for i in range(n)]
-    return np.array(slices)
-
-def ewma(current, new, alpha=0.1):
-    return current + alpha * (new - current)
+def get_linear_factor(start, stop, n, epoch):
+    target = start + (epoch / (n - 1.)) * (stop - start)
+    return target / start
 
 class LRFinder():
-    def __init__(self, optim, num_iter, low_lr=1e-7, high_lr=10):
-        self.optim = optim
+    def __init__(self, model, bunch, loss_fn, optim, num_iter, void_code,
+                 low_lr=1e-7, high_lr=2, is_exponential=True):
         self.num_iter = num_iter
-        self.lambda_func = lambda batch : get_running_factor(low_lr, high_lr, self.num_iter, batch)
+        if is_exponential:
+            self.lambda_func = lambda batch : get_exponential_factor(low_lr, high_lr, self.num_iter, batch)
+        else:
+            self.lambda_func = lambda batch : get_linear_factor(low_lr, high_lr, self.num_iter, batch)
         self.scheduler = LambdaLR(optim, lr_lambda=self.lambda_func)
-        self.learning_rates = []
-        self.losses = []
+        self.learner = UNetLearner(model, bunch, loss_fn, optim, self.scheduler, void_code)
     
-    def find(self, model, input, loss_fn):
-        smooth_loss = None
-        best_loss = np.Inf
-        stop_training = False
-        num_epochs = int(np.floor(self.num_iter/len(input)))
+    def find(self):
+        num_epochs = int(np.floor(self.num_iter/len(self.learner.bunch.train_dl)))
         for epoch in list(range(num_epochs)):
-            if stop_training:
-                break
-            model.train()
-            self.optim.zero_grad()
-            for i, batch in enumerate(input):
-                print("Batch {} has learning rate {}".format(i, self.scheduler.get_lr()))
-                images, masks = batch
-                x = Variable(images)
-                y = Variable(masks)
-                pred = model.forward(x)
-
-                loss = loss_fn(pred, y)
-                if smooth_loss is not None:
-                    smooth_loss = ewma(smooth_loss, loss.item())
-                else:
-                    smooth_loss = loss.item()
-                if smooth_loss < best_loss:
-                    best_loss = smooth_loss
-                if smooth_loss > 4 * best_loss or np.isnan(smooth_loss):
-                    stop_training = True
-                    break
-
-                self.learning_rates.append(self.scheduler.get_lr())
-                self.losses.append(loss.item())
-
-                loss.backward()
-                self.optim.step()
-                self.scheduler.step()
-                self.optim.zero_grad()
-        self.learning_rates = np.array(self.learning_rates).flatten()
-        self.losses = np.array(self.losses)
+            # This is ugly, finder needs to know too much about learner
+            train_dl = self.learner.bunch.train_dl
+            for i, batch in enumerate(train_dl):
+                self.learner.is_training = True
+                self.learner._batch(epoch, i, batch)
+                self.learner.evaluate(0)
     
-    def get_learning_rates(self):
-        return self.learning_rates
+    def get_lrs(self):
+        return torch.Tensor(self.learner.history["lr"]).cpu()
 
     def get_losses(self):
-        return self.losses
+        num_batches = len(self.learner.bunch.valid_dl)
+        x = torch.Tensor(self.learner.history["val_loss"])
+        x = x.reshape(x.size(0) // num_batches, num_batches).mean(axis = 1)
+        return x.cpu()
 
-#niter = 100
-#optim = opt.Adam(model.parameters(), lr=1e-7)
-#lr_lambda = lambda batch : get_running_factor(1e-7, 10, niter, batch)
-#lr_finder.find(model = model, input = bunch.train_dl, loss_fn=loss_fn)
+    def get_accuracies(self):
+        num_batches = len(self.learner.bunch.valid_dl)
+        x = torch.Tensor(self.learner.history["val_acc"])
+        x = x.reshape(x.size(0) // num_batches, num_batches).mean(axis = 1)
+        return x.cpu()

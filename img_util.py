@@ -51,35 +51,27 @@ def show_batch(epoch, batch, inputs, predictions, masks, void_code, is_training,
             batch, otherwise pick the first n.
     """
     ax = None
-    rows, cols = n, 2
+    rows, cols = 1, 2
     size = 9
-    row_fac = 208. / 512
-    col_fac = 1.
-    if ax is None:
-        fig, axs = plt.subplots(rows, cols, figsize=(cols * size * col_fac,
-                                                    rows * size * row_fac))
-    if rows == 1 and cols == 1:
-        axs = [[axs]]
-    elif (rows == 1 and cols != 1) or (rows != 1 and cols == 1):
-        axs = [axs]
-    axs = np.array(axs)
 
     cmap = ListedColormap(['black', 'red', 'blue'])
     norm = BoundaryNorm([0., 0.5, 1.5, 2.], cmap.N)
 
-    #xtr = dict(cmap="viridis", alpha=1.0)
     xtr = dict(cmap=cmap, norm=norm, alpha=1.0)
 
     images = imagify(inputs, predictions, masks, void_code, n, randomize)
 
-    for imgs, ax_row in zip(images, axs):
-        for img, ax in zip(imgs, ax_row):
+    for i, imgs in enumerate(images):
+        # Produce output with 10% probability
+        #if torch.rand(1).item() > 0.1: continue
+        fig, axs = plt.subplots(1, cols, figsize=(cols * size, size))
+        for img, ax in zip(imgs, axs):
             ax.imshow(img, **xtr)
-    for ax in axs.flatten():
-        ax.axis('off')
-    plt.tight_layout()
-    if is_training: save_figure(plt, "training_{}_{}".format(epoch, batch))
-    else: save_figure(plt, "validation_{}_{}".format(epoch, batch))
+            ax.axis('off')
+        plt.tight_layout()
+        if is_training: save_figure(plt, "training_{}_{}_{}".format(epoch, batch, i))
+        else: save_figure(plt, "validation_{}_{}_{}".format(epoch, batch, i))
+        plt.close(fig)
 
 def save_figure(fig, name):
     """Output a matplotlib figure PNG, PDF and EPS formats.

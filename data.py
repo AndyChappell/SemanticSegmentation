@@ -78,6 +78,7 @@ class SegmentationBunch():
         train_size = len(image_filenames) - (valid_size + test_size)
         train_filenames = random_list[:train_size]
         valid_filenames = random_list[train_size:train_size + valid_size]
+        self.valid_filenames = valid_filenames
         
         train_ds = SegmentationDataset(image_dir, mask_dir, train_filenames,
             transform)
@@ -111,3 +112,15 @@ class SegmentationBunch():
     def image_stats(self):
         # This needs to be stored somewhere
         return 0.6969700455665588, 13.313282012939453
+
+def count_classes(dl, num_classes):
+    count = {key: 0 for key in range(num_classes)}
+    for batch in dl:
+        _, truth = batch
+        unique, counts = torch.unique(truth, return_counts=True)
+        unique = [ u.item() for u in unique ]
+        counts = [ c.item() for c in counts ]
+        this_dict = dict(zip(unique, counts))
+        for key in this_dict:
+                count[key] += this_dict[key]
+    return count
