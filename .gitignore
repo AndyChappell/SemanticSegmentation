@@ -1,5 +1,9 @@
 track_shower_images.tar.gz
 *~
+*.pkl
+*.gz
 .DS_Store
 Images/
 TrainingTexts/
+subset/
+grid/
