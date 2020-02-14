@@ -12,6 +12,8 @@ VOID_CODE = 0
 SHOWER_CODE = 1
 TRACK_CODE = 2
 
+make_viewable_truth = False
+
 pdg_codes = set([])
 
 class Geometry:
@@ -101,25 +103,26 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
         x_position_index = n_elements * hit_index + 0
         z_position_index = n_elements * hit_index + 2
         pdg_index = n_elements * hit_index + 3
-        nuance_code_index = n_elements * hit_index + 4
+        reco_index = n_elements * hit_index + 4
 
         x.append(float(row[x_position_index]))
         z.append(float(row[z_position_index]))
         pdg = int(row[pdg_index])
         pdg_codes.add(pdg)
-        nuance_code = int(row[nuance_code_index])
+        is_reconstructable = int(row[reco_index])
 
         if pdg in shower_pdg_codes:
-            r.append(0)
-            g.append(1)
-            b.append(0)
-            code.append(SHOWER_CODE)
+            #if is_reconstructable:
+                r.append(0)
+                g.append(1)
+                b.append(0)
+                code.append(SHOWER_CODE)
         else:
-            r.append(1)
-            g.append(0)
-            b.append(0)
-            code.append(TRACK_CODE)
-
+            #if is_reconstructable:
+                r.append(1)
+                g.append(0)
+                b.append(0)
+                code.append(TRACK_CODE)
 
     x = np.array(x)
     z = np.array(z)
@@ -149,16 +152,23 @@ def process_picture(row, x_bin_edges, z_bin_edges, image_size, name, output_fold
     #cv2.imwrite(truth_image_name, cv2.cvtColor(truth_histogram, cv2.COLOR_RGB2BGR))
 
     truth_histogram = np.zeros((image_height, image_width), 'uint8')
+    if make_viewable_truth:
+        truth_viewable_histogram = np.zeros((image_height, image_width, 3), 'uint8')
 
     for idx, x_iter in enumerate(x):
         index_x = x_bin_indices[idx]
         index_z = z_bin_indices[idx]
         if index_x < image_height and index_z < image_width:
             truth_histogram[index_x, index_z] = code[idx]
+            if make_viewable_truth:
+                if code[idx] == SHOWER_CODE: truth_viewable_histogram[index_x, index_z, 0] = 255
+                if code[idx] == TRACK_CODE: truth_viewable_histogram[index_x, index_z, 2] = 255
 
     truth_image_name = os.path.join(output_folder, "TruthImage_" + name + "_0.png")
-
     cv2.imwrite(truth_image_name, truth_histogram)
+    if make_viewable_truth:
+        truth_image_name = os.path.join(output_folder, "Viewable/TruthImage_" + name + "_0.png")
+        cv2.imwrite(truth_image_name, cv2.cvtColor(truth_viewable_histogram, cv2.COLOR_RGB2BGR))
 
 #========================================================================================
 
@@ -172,12 +182,17 @@ if __name__ == "__main__":
         dest="file_prefix", help="The filename prefix")
     parser.add_argument("--output-dir", "-o", type=str, required=True,
         dest="output_dir", help="The path in which output image files will be stored")
+    parser.add_argument("--truth", action='store_true')
     args = parser.parse_args()
+
+    if args.truth: make_viewable_truth = True
 
     file_pattern = '{}_CaloHitList*.txt'.format(args.file_prefix)
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
+    if not os.path.exists(args.output_dir + "/Viewable"):
+        os.makedirs(args.output_dir + "/Viewable")
 
     all_files = [f for f in glob.glob(os.path.join(args.input_dir, file_pattern))]
     all_files.sort()
