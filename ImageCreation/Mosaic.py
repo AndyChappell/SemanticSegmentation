@@ -13,7 +13,8 @@ pdg_codes = set([])
 VOID_CODE = 0
 SHOWER_CODE = 1
 TRACK_CODE = 2
-NO_RECO_CODE = 3
+NO_RECO_CODE = 5
+#NO_RECO_CODE = 3
 K_CODE = 321
 P_CODE = 2212
 E_CODE = 11
@@ -27,20 +28,34 @@ make_volatile = False
 make_viewable_truth = False
 make_pdg_truth = False
 
-palette = {
-    VOID_CODE: [0., 0., 0.],
-    SHOWER_CODE: [0., 0., 255.],
-    TRACK_CODE: [255., 0., 0.],
-    NO_RECO_CODE: [0., 255., 255.],
-    K_CODE: [127., 201, 127.],
-    P_CODE: [212., 174., 190.],
-    E_CODE: [134., 192., 253.],
-    MU_CODE: [153., 255., 255.],
-    PI_CODE: [128., 108., 56.],
-    GAMMA_CODE: [127., 2., 240.],
-    SIGMAP_CODE: [23., 91., 191.],
-    SIGMAM_CODE: [23., 91., 191.]
-}
+palette = {}
+
+def make_pdg_palette():
+    global palette
+    palette = {
+        VOID_CODE: [0., 0., 0.],
+        SHOWER_CODE: [0., 0., 255.],
+        TRACK_CODE: [255., 0., 0.],
+        NO_RECO_CODE: [0., 255., 255.],
+        K_CODE: [127., 201, 127.],
+        P_CODE: [212., 174., 190.],
+        E_CODE: [134., 192., 253.],
+        MU_CODE: [153., 255., 255.],
+        PI_CODE: [128., 108., 56.],
+        GAMMA_CODE: [127., 2., 240.],
+        SIGMAP_CODE: [23., 91., 191.],
+        SIGMAM_CODE: [23., 91., 191.]
+    }
+
+def make_classifier_palette():
+    global palette
+    palette = {
+        1: [217,  95,   2],     # SHOWER - Orange
+        2: [117, 112, 179],     # MIP - Purple
+        3: [231,  41, 138],     # HIP - Pink
+        4: [230, 171,   2],     # MICHEL - Yellow
+        5: [  0,   0,   0]      # NON-RECO - Black
+    }
 
 def fill_pixel(histogram, code, nx, nz, local_x, local_z):
     histogram[nx, nz, local_x, local_z,] = palette[code]
@@ -80,11 +95,14 @@ def make_images(input_file, output_folder = '', image_size = (208, 512)):
 
 #===============================================================================
 
+# Consider 384 x 384
 def process_hits(hits, name, output_folder, image_size=(256, 256)):
+    global pdg_codes
     truth_output_folder = output_folder + "/Images/Truth"
     hits_output_folder = output_folder + "/Images/Hits"
     n_elements = 5
-    block_size = 128.0
+    # Block size tuned to better fit wire pitch
+    block_size = 116.0 #128.0
     num_hits = len(hits) // n_elements
     x = np.zeros(num_hits)
     z = np.zeros(num_hits)
@@ -113,13 +131,14 @@ def process_hits(hits, name, output_folder, image_size=(256, 256)):
         pdg[i] = (int(hits[pdg_idx]))
         pdg_codes.add(pdg[i])
         is_reconstructable = int(hits[reco_idx])
-        if not is_reconstructable:
-            tag[i] = NO_RECO_CODE
-            continue
-        if pdg[i] in shower_codes:
-            tag[i] = SHOWER_CODE
-        else:
-            tag[i] = TRACK_CODE
+        tag[i] = pdg[i]
+        #if not is_reconstructable:
+        #    tag[i] = NO_RECO_CODE
+        #    continue
+        #if pdg[i] in shower_codes:
+        #    tag[i] = SHOWER_CODE
+        #else:
+        #    tag[i] = TRACK_CODE
 
     image_height, image_width = image_size
     x_min, x_max = np.amin(x), np.amax(x)
@@ -158,7 +177,9 @@ def process_hits(hits, name, output_folder, image_size=(256, 256)):
 
     for i in range(n_x):
         for j in range(n_z):
-            if np.all(truth_histogram[i,j,...] == 0): continue
+            #if np.all(truth_histogram[i,j,...] == 0): continue
+            # Avoid training on empty or near empty tiles
+            if np.count_nonzero(truth_histogram[i,j,...]) < 25: continue
 
             # Produce tiling images for debug
             if make_volatile:
@@ -189,7 +210,7 @@ def process_hits(hits, name, output_folder, image_size=(256, 256)):
             cv2.imwrite(input_image_name, input_histogram[i, j, ...])
             if make_viewable_truth:
                 truth_image_name = os.path.join(output_folder, f"Images/Viewable/Image_{name}_{i}_{j}.png")
-                cv2.imwrite(truth_image_name, truth_viewable_histogram[i, j, ...])
+                cv2.imwrite(truth_image_name, cv2.cvtColor(truth_viewable_histogram[i, j, ...], cv2.COLOR_RGB2BGR))
 
 #========================================================================================
 
@@ -213,6 +234,9 @@ if __name__ == "__main__":
     if args.pdg:
         make_pdg_truth = True
         make_viewable_truth = True
+        make_pdg_palette()
+    elif make_viewable_truth:
+        make_classifier_palette()
 
     np.random.seed(42)
 
